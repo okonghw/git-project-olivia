@@ -1,7 +1,8 @@
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
+import java.util.Scanner;
+import static java.nio.file.StandardCopyOption.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.DigestException;
@@ -9,22 +10,22 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 public class Git {
     public static void main (String[] args) throws DigestException, NoSuchAlgorithmException, IOException {
-       //Test creating repository when it doesn't exist (should print "Initialized repository and deleted files")
-       //System.out.println(initRepoTester());
+        //Test creating repository when it doesn't exist (should print "Initialized repository and deleted files")
+       System.out.println(initRepoTester());
        //Test creating respository when it already exists (should print "Git Repository already exists")
-       //initRepo();
-       //System.out.println(initRepoTester());
-       System.out.println(sha1Tester(Paths.get("/users/pranaviyer/test/file.txt")));
+       initRepo();
+       System.out.println(initRepoTester());
+       blobTester(Paths.get("/users/pranaviyer/file.txt"));
     }
 
     //Initializes repo
-    public static void initRepo(){
-        //Create paths for each of the files in git folder, which creates parent directory git along the way
-        File file1 = new File("./git/objects");
+    public static void initRepo() throws IOException{
+        //Create directory/files in git folder, which creates parent directory git along the way
+        Path file1 = Paths.get("./git/objects");
         File file2 = new File("./git/index");
         //Makes directories - will be false if they already exist
-        boolean bool1 = file1.mkdirs();
-        boolean bool2 = file2.mkdirs();
+        boolean bool1 = file1.toFile().mkdirs();
+        boolean bool2 = file2.createNewFile();
         //Returns "Git repository already exists" if both directories already exist
         if (!(bool1)&&!(bool2)){
             System.out.println("Git Repository already exists");
@@ -32,13 +33,13 @@ public class Git {
     }
     
     //Tests initRepo() for when directory already exists or doesn't exist yet
-    public static String initRepoTester(){
-        //Creates all three directories - git, objects and index within git
+    public static String initRepoTester() throws IOException{
+        //Creates all three directories/files - git, objects and index within git
         Path file1 = Paths.get("./git/objects");
-        Path file2 = Paths.get("./git/index");
+        File file2 = new File("./git/index");
         Path file3 = Paths.get("./git");
         //Tests if repository already exists, which should print "Git repository already exists"
-        if (file1.toFile().exists() && file2.toFile().exists()){
+        if (file1.toFile().exists() && file2.exists()){
             initRepo();
             return "";
         }
@@ -46,9 +47,9 @@ public class Git {
         initRepo();
         //Checks if files were created
         boolean bool1 = file1.toFile().exists();
-        boolean bool2 = file2.toFile().exists();
+        boolean bool2 = file2.exists();
         //Deletes all the files (have to delete objects and index first as files.delete() only deletes empty directories)
-        boolean delete = file1.toFile().delete() && file2.toFile().delete() && file3.toFile().delete();
+        boolean delete = file1.toFile().delete() && file2.delete() && file3.toFile().delete();
         //Checks if files were created and then deleted
         if (bool1&&bool2&&delete){
             return "Initialized repository and deleted files";
@@ -66,5 +67,61 @@ public class Git {
 
     public static String sha1Tester(Path path) throws DigestException, NoSuchAlgorithmException, IOException{
         return (sha1(path));
+    }
+
+    public static void createBlob(Path path) throws DigestException, NoSuchAlgorithmException, IOException{
+        Path hash = Paths.get("./git/objects/" + sha1(path));
+        Files.copy(path, hash, REPLACE_EXISTING);
+        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("./git/index"));
+        BufferedReader bufferedReader = new BufferedReader(new FileReader("./git/index"));
+        String str = "";
+        if (bufferedReader.readLine() == null){
+            str = sha1(path) + " " + path.getFileName().toString();
+        }
+        else{
+            str = "\n" + sha1(path) + " " + path.getFileName().toString();
+        }
+        bufferedReader.close();
+        bufferedWriter.write(str);
+        bufferedWriter.close();
+    }
+
+    public static void blobTester(Path path) throws DigestException, NoSuchAlgorithmException, IOException{
+        Path path2 = Paths.get("./git/objects/" + sha1(path));
+        createBlob(path);
+        System.out.println("Copied file exists within objects directory: " + path2.toFile().exists());
+        System.out.println("Contents of copied and original are the same: " + (Files.mismatch(path, path2) == -1));
+        boolean bool1 = path2.toFile().delete();
+        System.out.println("Path deleted correctly in objects directory in order to reset: " + bool1);
+        checkIndex(path);
+    }
+    
+    public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
+        Scanner scanner = new Scanner(new FileReader("./git/index"));
+        String line = scanner.nextLine();
+        while (scanner.hasNextLine()){
+            line = scanner.nextLine();
+        }
+        scanner.close();
+        System.out.println("Correct entry in index: " + line.equals(sha1(path) + " " + path.getFileName().toString()));
+        deleteIndex(line);
+    }
+
+    public static void deleteIndex(String line) throws IOException{
+        File inputFile = new File("./git/index");
+        File tempFile = new File("./git/tempfile");
+        BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+        BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+        String lineToRemove = line;
+        String currentLine;
+        while((currentLine = reader.readLine()) != null) {
+            String trimmedLine = currentLine.trim();
+            if(trimmedLine.equals(lineToRemove)) continue;
+            writer.write(currentLine + System.getProperty("line.separator"));
+        }
+        writer.close(); 
+        reader.close(); 
+        boolean successful = tempFile.renameTo(inputFile);
+        System.out.println("Entry deleted in index: " + successful);
     }
 }
