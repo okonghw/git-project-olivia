@@ -9,6 +9,7 @@ import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.zip.*;
+
 public class Git {
     public static void main (String[] args) throws DigestException, NoSuchAlgorithmException, IOException {
         //Test creating repository when it doesn't exist (should print "Initialized repository and deleted files")
@@ -98,16 +99,15 @@ public class Git {
         }
         scanner.close();
         File f = new File(path.getFileName().toString() + ".zip");
-        Path zipPath = Paths.get(path.getFileName().toString() + ".zip");
         ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
         ZipEntry e = new ZipEntry(path.getFileName().toString());
         out.putNextEntry(e);
         byte[] data = str.toString().getBytes();
         out.write(data, 0, data.length);
         out.closeEntry();
-        System.out.println("Contents of copied and original are the same: " + (Files.mismatch(path, zipPath) == -1));
         out.close();
     }
+
 
     public static void blobTester(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
         Path path2 = Paths.get("./git/objects/" + sha1(path));
