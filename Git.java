@@ -21,20 +21,6 @@ public class Git {
        System.out.println(initRepoTester());
        blobTester(Paths.get("/users/pranaviyer/test/file.txt"), true);
     }
-
-    //Initializes repo
-    public static void initRepo() throws IOException{
-        //Create directory/files in git folder, which creates parent directory git along the way
-        Path file1 = Paths.get("./git/objects");
-        File file2 = new File("./git/index");
-        //Makes directories - will be false if they already exist
-        boolean bool1 = file1.toFile().mkdirs();
-        boolean bool2 = file2.createNewFile();
-        //Returns "Git repository already exists" if both directories already exist
-        if (!(bool1)&&!(bool2)){
-            System.out.println("Git Repository already exists");
-        }
-    }
     
     //Tests initRepo() for when directory already exists or doesn't exist yet
     public static String initRepoTester() throws IOException{
@@ -61,89 +47,19 @@ public class Git {
         return "Did not initialize repository";
     }
 
-    public static String sha1(Path path) throws DigestException, IOException, NoSuchAlgorithmException{
-        MessageDigest md = MessageDigest.getInstance("SHA-1");
-        byte[] fileBytes = md.digest(Files.readAllBytes(path));
-        BigInteger file_int = new BigInteger(1, fileBytes);
-        String str = file_int.toString(16);
-        return(str);
-    }
-
-    public static String sha1Tester(Path path) throws DigestException, NoSuchAlgorithmException, IOException{
-        return (sha1(path));
-    }
-
-    public static Path createBlob(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
-        if (compress){
-            String str1 = compressData(path);
-            path = unzip(str1, path.getFileName().toString());
+    //Initializes repo
+    public static void initRepo() throws IOException{
+        //Create directory/files in git folder, which creates parent directory git along the way
+        Path file1 = Paths.get("./git/objects");
+        File file2 = new File("./git/index");
+        //Makes directories - will be false if they already exist
+        boolean bool1 = file1.toFile().mkdirs();
+        boolean bool2 = file2.createNewFile();
+        //Returns "Git repository already exists" if both directories already exist
+        if (!(bool1)&&!(bool2)){
+            System.out.println("Git Repository already exists");
         }
-        Path hash = Paths.get("./git/objects/" + sha1(path));
-        Files.copy(path, hash, REPLACE_EXISTING);
-        BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index"));
-        BufferedReader br = new BufferedReader(new FileReader("./git/index"));
-        String str = "";
-        if (br.readLine() == null){
-            str = sha1(path) + " " + path.getFileName().toString();
-        }
-        else{
-            str = "\n" + sha1(path) + " " + path.getFileName().toString();
-        }
-        br.close();
-        bw.write(str);
-        bw.close();
-        return(path);
     }
-
-    public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
-        StringBuilder str = new StringBuilder();
-        Scanner scanner = new Scanner(new FileReader(path.toString()));
-        while (scanner.hasNextLine()){
-            str.append(scanner.nextLine());
-        }
-        scanner.close();
-        File f = new File(path.getFileName().toString() + ".zip");
-        ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
-        ZipEntry e = new ZipEntry(path.getFileName().toString());
-        out.putNextEntry(e);
-        byte[] data = str.toString().getBytes();
-        out.write(data, 0, data.length);
-        out.closeEntry();
-        out.close();
-        return (f.getPath());
-    }
-
-    public static Path unzip(String path, String destDir) throws IOException{
-        File dest = new File (destDir);
-        if (!dest.exists()) {
-            dest.createNewFile();
-        }
-        extract(path, dest);
-        System.out.println ("Zipped file deleted successfully: " + Paths.get(path).toFile().delete());
-        return(Paths.get(dest.getPath()));
-    }
-
-    public static void extract(String zipPath, File dest) throws IOException{
-        ZipFile zipFile = new ZipFile(zipPath);
-        Enumeration<? extends ZipEntry> entries = zipFile.entries();
-        while(entries.hasMoreElements()){
-            ZipEntry entry = entries.nextElement();
-            InputStream instream = zipFile.getInputStream(entry);
-            FileOutputStream outstream = new FileOutputStream(dest);
-            BufferedOutputStream buffstream = new BufferedOutputStream(outstream);
-
-            byte[] buffer = new byte[1024]; // Buffer to hold chunks of data
-            int bytesRead;
-            while ((bytesRead = instream.read(buffer)) != -1) {
-                buffstream.write(buffer, 0, bytesRead);
-            }
-            instream.close();
-            buffstream.close();
-            outstream.close();
-        }
-        zipFile.close();
-    }
-
 
     public static void blobTester(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
         path = createBlob(path, compress);
@@ -158,7 +74,102 @@ public class Git {
             System.out.println("Unzipped path deleted correctly in order to reset: " + (bool2));
         }
     }
-    
+
+    //Implements sha1 hash function
+    public static String sha1(Path path) throws DigestException, IOException, NoSuchAlgorithmException{
+        MessageDigest md = MessageDigest.getInstance("SHA-1");
+        byte[] fileBytes = md.digest(Files.readAllBytes(path));
+        BigInteger file_int = new BigInteger(1, fileBytes);
+        String str = file_int.toString(16);
+        return(str);
+    }
+
+    //Prints sha1 (check using sha1 website)
+    public static String sha1Tester(Path path) throws DigestException, NoSuchAlgorithmException, IOException{
+        return (sha1(path));
+    }
+
+    //Creates blob using fileToSave, compress - zip-compression true or false, returns the path of the unzipped file
+    public static Path createBlob(Path fileToSave, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
+        //compresses if true, unzips in order to copy data
+        if (compress){
+            String str1 = compressData(fileToSave);
+            fileToSave = unzip(str1, fileToSave.getFileName().toString());
+        }
+        Path hash = Paths.get("./git/objects/" + sha1(fileToSave));
+        //copies data
+        Files.copy(fileToSave, hash, REPLACE_EXISTING);
+        //writes onto index file
+        BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index"));
+        BufferedReader br = new BufferedReader(new FileReader("./git/index"));
+        String str = "";
+        if (br.readLine() == null){
+            str = sha1(fileToSave) + " " + fileToSave.getFileName().toString();
+        }
+        else{
+            str = "\n" + sha1(fileToSave) + " " + fileToSave.getFileName().toString();
+        }
+        br.close();
+        bw.write(str);
+        bw.close();
+        return(fileToSave);
+    }
+
+    //zip-compression method
+    public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
+        StringBuilder str = new StringBuilder();
+        Scanner scanner = new Scanner(new FileReader(path.toString()));
+        while (scanner.hasNextLine()){
+            str.append(scanner.nextLine());
+        }
+        scanner.close();
+        //creates zip file
+        File f = new File(path.getFileName().toString() + ".zip");
+        ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
+        ZipEntry e = new ZipEntry(path.getFileName().toString());
+        out.putNextEntry(e);
+        byte[] data = str.toString().getBytes();
+        out.write(data, 0, data.length);
+        out.closeEntry();
+        out.close();
+        return (f.getPath());
+    }
+
+    //writes zip file onto blank file
+    public static Path unzip(String path, String destDir) throws IOException{
+        File dest = new File (destDir);
+        if (!dest.exists()) {
+            dest.createNewFile();
+        }
+        extract(path, dest);
+        //deletes zipped file after testing that contents are correct
+        System.out.println ("Zipped file deleted successfully: " + Paths.get(path).toFile().delete());
+        return(Paths.get(dest.getPath()));
+    }
+
+    //extracts data from zip file
+    public static void extract(String zipPath, File dest) throws IOException{
+        ZipFile zipFile = new ZipFile(zipPath);
+        Enumeration<? extends ZipEntry> entries = zipFile.entries();
+        while(entries.hasMoreElements()){
+            ZipEntry entry = entries.nextElement();
+            InputStream instream = zipFile.getInputStream(entry);
+            FileOutputStream outstream = new FileOutputStream(dest);
+            BufferedOutputStream buffstream = new BufferedOutputStream(outstream);
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = instream.read(buffer)) != -1) {
+                buffstream.write(buffer, 0, bytesRead);
+            }
+            instream.close();
+            buffstream.close();
+            outstream.close();
+        }
+        zipFile.close();
+    }
+
+    //checks if entry in index is correct
     public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
         Scanner scanner = new Scanner(new FileReader("./git/index"));
         String line = scanner.nextLine();
@@ -170,6 +181,7 @@ public class Git {
         deleteIndex(line);
     }
 
+    //deletes entry in index
     public static void deleteIndex(String line) throws IOException{
         File inputFile = new File("./git/index");
         File tempFile = new File("./git/tempfile");
