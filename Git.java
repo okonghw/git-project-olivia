@@ -17,7 +17,7 @@ public class Git {
        //Test creating respository when it already exists (should print "Git Repository already exists")
        initRepo();
        System.out.println(initRepoTester());
-       blobTester(Paths.get("/users/pranaviyer/test/file.txt"), true);
+       blobTester(Paths.get("/users/pranaviyer/test/file.txt"), false);
     }
 
     //Initializes repo
@@ -71,9 +71,10 @@ public class Git {
         return (sha1(path));
     }
 
-    public static void createBlob(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
+    public static Path createBlob(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
         if (compress){
-            compressData(path);
+            String str1 = compressData(path);
+            path = unzip(str1, path.getFileName().toString());
         }
         Path hash = Paths.get("./git/objects/" + sha1(path));
         Files.copy(path, hash, REPLACE_EXISTING);
@@ -89,9 +90,10 @@ public class Git {
         br.close();
         bw.write(str);
         bw.close();
+        return(path);
     }
 
-    public static void compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
+    public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
         StringBuilder str = new StringBuilder();
         Scanner scanner = new Scanner(new FileReader(path.toString()));
         while (scanner.hasNextLine()){
@@ -106,17 +108,44 @@ public class Git {
         out.write(data, 0, data.length);
         out.closeEntry();
         out.close();
+        return (f.getPath());
+    }
+
+    public static Path unzip(String path, String destDir) throws IOException{
+        File dest = new File (destDir);
+        if (!dest.exists()) {
+            dest.createNewFile();
+        }
+        ZipInputStream zipIn = new ZipInputStream(new FileInputStream(path));
+        extract(zipIn, destDir);
+        zipIn.closeEntry();
+        System.out.println ("Zipped file deleted successfully: " + Paths.get(path).toFile().delete());
+        return(Paths.get(dest.getPath()));
+    }
+
+    public static void extract(ZipInputStream zipIn, String filePath) throws IOException{
+        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
+        byte[] bytes = new byte[4096];
+            int read;
+            while ((read = zipIn.read(bytes)) != -1) {
+                bos.write(bytes, 0, read);
+        }
+        bos.close();
     }
 
 
     public static void blobTester(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
+        path = createBlob(path, compress);
         Path path2 = Paths.get("./git/objects/" + sha1(path));
-        createBlob(path, compress);
         System.out.println("Copied file exists within objects directory: " + path2.toFile().exists());
         System.out.println("Contents of copied and original are the same: " + (Files.mismatch(path, path2) == -1));
         boolean bool1 = path2.toFile().delete();
-        System.out.println("Path deleted correctly in objects directory in order to reset: " + bool1);
+        System.out.println("Path deleted correctly in objects directory in order to reset: " + (bool1));
         checkIndex(path);
+        if(compress){
+            boolean bool2 = path.toFile().delete();
+            System.out.println("Unzipped path deleted correctly in order to reset: " + (bool2));
+        }
     }
     
     public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
