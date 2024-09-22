@@ -1,6 +1,7 @@
 import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
+import java.util.Enumeration;
 import java.util.Scanner;
 import static java.nio.file.StandardCopyOption.*;
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.zip.*;
 
+
 public class Git {
     public static void main (String[] args) throws DigestException, NoSuchAlgorithmException, IOException {
         //Test creating repository when it doesn't exist (should print "Initialized repository and deleted files")
@@ -17,7 +19,7 @@ public class Git {
        //Test creating respository when it already exists (should print "Git Repository already exists")
        initRepo();
        System.out.println(initRepoTester());
-       blobTester(Paths.get("/users/pranaviyer/test/file.txt"), false);
+       blobTester(Paths.get("/users/pranaviyer/test/file.txt"), true);
     }
 
     //Initializes repo
@@ -116,21 +118,30 @@ public class Git {
         if (!dest.exists()) {
             dest.createNewFile();
         }
-        ZipInputStream zipIn = new ZipInputStream(new FileInputStream(path));
-        extract(zipIn, destDir);
-        zipIn.closeEntry();
+        extract(path, dest);
         System.out.println ("Zipped file deleted successfully: " + Paths.get(path).toFile().delete());
         return(Paths.get(dest.getPath()));
     }
 
-    public static void extract(ZipInputStream zipIn, String filePath) throws IOException{
-        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
-        byte[] bytes = new byte[4096];
-            int read;
-            while ((read = zipIn.read(bytes)) != -1) {
-                bos.write(bytes, 0, read);
+    public static void extract(String zipPath, File dest) throws IOException{
+        ZipFile zipFile = new ZipFile(zipPath);
+        Enumeration<? extends ZipEntry> entries = zipFile.entries();
+        while(entries.hasMoreElements()){
+            ZipEntry entry = entries.nextElement();
+            InputStream instream = zipFile.getInputStream(entry);
+            FileOutputStream outstream = new FileOutputStream(dest);
+            BufferedOutputStream buffstream = new BufferedOutputStream(outstream);
+
+            byte[] buffer = new byte[1024]; // Buffer to hold chunks of data
+            int bytesRead;
+            while ((bytesRead = instream.read(buffer)) != -1) {
+                buffstream.write(buffer, 0, bytesRead);
+            }
+            instream.close();
+            buffstream.close();
+            outstream.close();
         }
-        bos.close();
+        zipFile.close();
     }
 
 
