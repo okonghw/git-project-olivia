@@ -19,7 +19,7 @@ public class Git {
        //Test creating respository when it already exists (should print "Git Repository already exists")
        initRepo();
        System.out.println(initRepoTester());
-       blobTester(Paths.get("/users/pranaviyer/test/file.txt"), true);
+       blobTester(Paths.get("/Users/oliviakong/Desktop/everything basically/forkedcodetest/file.txt"), true);
     }
     
     //Tests initRepo() for when directory already exists or doesn't exist yet
