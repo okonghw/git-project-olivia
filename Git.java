@@ -1,11 +1,13 @@
 import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Scanner;
 import static java.nio.file.StandardCopyOption.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -15,11 +17,13 @@ import java.util.zip.*;
 public class Git {
     public static void main (String[] args) throws DigestException, NoSuchAlgorithmException, IOException {
         //Test creating repository when it doesn't exist (should print "Initialized repository and deleted files")
-       System.out.println(initRepoTester());
+    //    System.out.println(initRepoTester());
        //Test creating respository when it already exists (should print "Git Repository already exists")
-       initRepo();
-       System.out.println(initRepoTester());
-       blobTester(Paths.get("/Users/oliviakong/Desktop/everything basically/forkedcodetest/file.txt"), true);
+    //    initRepo();
+    //    System.out.println(initRepoTester());
+    //    blobTester(Paths.get("/Users/oliviakong/Desktop/everything basically/forkedcodetest/file.txt"), true);
+        Path path = Paths.get("/Users/oliviakong/Desktop/everything basically/forkedcodetest/newFolder");
+        createBlob(path, false, "");
     }
     
     //Tests initRepo() for when directory already exists or doesn't exist yet
@@ -61,8 +65,8 @@ public class Git {
         }
     }
 
-    public static void blobTester(Path path, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
-        path = createBlob(path, compress);
+    public static void blobTester(Path path, boolean compress, String parent) throws DigestException, NoSuchAlgorithmException, IOException{
+        path = createBlob(path, compress, parent);
         Path path2 = Paths.get("./git/objects/" + sha1(path));
         System.out.println("Copied file exists within objects directory: " + path2.toFile().exists());
         System.out.println("Contents of copied and original are the same: " + (Files.mismatch(path, path2) == -1));
@@ -78,10 +82,24 @@ public class Git {
     //Implements sha1 hash function
     public static String sha1(Path path) throws DigestException, IOException, NoSuchAlgorithmException{
         MessageDigest md = MessageDigest.getInstance("SHA-1");
-        byte[] fileBytes = md.digest(Files.readAllBytes(path));
-        BigInteger file_int = new BigInteger(1, fileBytes);
-        String str = file_int.toString(16);
-        return(str);
+        if (path.toFile().isDirectory()) {
+            File[] allFiles = path.toFile().listFiles();
+            StringBuilder combined = new StringBuilder();
+
+            if (allFiles != null && allFiles.length > 0) {
+                for (File file : allFiles) {
+                    combined.append(file.getName()).append("/");
+                }
+                combined.deleteCharAt(combined.length() - 1);
+            }
+
+            md.update(combined.toString().getBytes());
+        } else {
+            md.update(Files.readAllBytes(path));
+        }
+        byte[] digest = md.digest();
+        BigInteger fileInt = new BigInteger(1, digest);
+        return fileInt.toString(16);
     }
 
     //Prints sha1 (check using sha1 website)
@@ -89,32 +107,74 @@ public class Git {
         return (sha1(path));
     }
 
-    //Creates blob using fileToSave, compress - zip-compression true or false, returns the path of the unzipped file
-    public static Path createBlob(Path fileToSave, boolean compress) throws DigestException, NoSuchAlgorithmException, IOException{
-        //compresses if true, unzips in order to copy data
-        if (compress){
-            String str1 = compressData(fileToSave);
-            fileToSave = unzip(str1, fileToSave.getFileName().toString());
+    // //Creates blob using fileToSave, compress - zip-compression true or false, returns the path of the unzipped file
+    public static Path createBlob(Path fileToSave, boolean compress, String parent) throws DigestException, NoSuchAlgorithmException, IOException{
+        if (fileToSave.toFile().isDirectory()) {
+            File filesInside[] = fileToSave.toFile().listFiles();
+
+            for (int i = 0; i < filesInside.length; i++) {
+                System.out.println (filesInside[i].getName());
+            }
+            StringBuilder sb = new StringBuilder();
+
+            //compresses if true, unzips in order to copy data
+            if (compress){
+                String str1 = compressData(fileToSave);
+                fileToSave = unzip(str1, fileToSave.getFileName().toString());
+            }
+            Path hash = Paths.get("./git/objects/" + sha1(fileToSave));
+            //copies data
+            Files.copy(fileToSave, hash, REPLACE_EXISTING);
+
+            if (filesInside == null || filesInside.length == 0) {
+                if (parent.equals("")) {
+                    try (BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index", true))) {
+                        bw.write("tree " + sha1(fileToSave) + " " + fileToSave.getFileName() + "\n");
+                    }
+                } else {
+                    try (BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index", true))) {
+                        bw.write("tree " + sha1(fileToSave) + " " + parent + "/" + fileToSave.getFileName() + "\n");
+                    }
+                }
+                return fileToSave;
+            } else {
+                for (File file : filesInside) {
+                    Path insideFile = file.toPath();
+                    parent = fileToSave.getFileName().toString();
+                    if (parent.equals("")) {
+                        createBlob(insideFile, compress, parent + "/" + fileToSave.getFileName());
+                        sb.append("tree " + sha1(fileToSave) + " " + fileToSave.toFile().getName() + "\n");
+                        System.out.println ("tree " + sha1(fileToSave) + " " + fileToSave.toFile().getName());
+                    } else {
+                        createBlob(insideFile, compress, parent + "/" + fileToSave.getFileName());
+                        sb.append("tree " + sha1(fileToSave) + " " + parent + "/" + file.getName() + "\n");
+                        System.out.println ("tree " + sha1(fileToSave) + " " + parent + "/" + file.getName());
+                    }
+                }
+            }
+
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index", true))) {
+                bw.write(sb.toString());
+            }
+
+        } else {
+            //compresses if true, unzips in order to copy data
+            if (compress){
+                String str1 = compressData(fileToSave);
+                fileToSave = unzip(str1, fileToSave.getFileName().toString());
+            }
+            Path hash = Paths.get("./git/objects/" + sha1(fileToSave));
+            //copies data
+            Files.copy(fileToSave, hash, REPLACE_EXISTING);
+            //writes onto index file
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index", true))) {
+                bw.write("blob " + sha1(fileToSave) + " " + parent + fileToSave.getFileName() + "\n");
+            }
         }
-        Path hash = Paths.get("./git/objects/" + sha1(fileToSave));
-        //copies data
-        Files.copy(fileToSave, hash, REPLACE_EXISTING);
-        //writes onto index file
-        BufferedWriter bw = new BufferedWriter(new FileWriter("./git/index"));
-        BufferedReader br = new BufferedReader(new FileReader("./git/index"));
-        String str = "";
-        if (br.readLine() == null){
-            str = sha1(fileToSave) + " " + fileToSave.getFileName().toString();
-        }
-        else{
-            str = "\n" + sha1(fileToSave) + " " + fileToSave.getFileName().toString();
-        }
-        br.close();
-        bw.write(str);
-        bw.close();
+
         return(fileToSave);
     }
-
+    
     //zip-compression method
     public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
         StringBuilder str = new StringBuilder();
@@ -199,4 +259,10 @@ public class Git {
         boolean successful = tempFile.renameTo(inputFile);
         System.out.println("Entry deleted in index: " + successful);
     }
+
+    public static void convertToTree() throws FileNotFoundException {
+        String str;
+        BufferedReader reader = new BufferedReader(new FileReader("./git/index"));
+    }
+
 }
