@@ -101,6 +101,11 @@ public class Git {
 
         Path objectsDir = Paths.get("./git/objects");
         File[] allObjects = objectsDir.toFile().listFiles();
+
+        for (File indexLine : allObjects) {
+            checkIndex(indexLine.toPath());
+        }
+
         if (allObjects != null) {
             for (File object : allObjects) {
                 boolean objectDeletionStatus = object.delete();
@@ -266,13 +271,11 @@ public class Git {
     // checks if entry in index is correct
     public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException {
         Scanner scanner = new Scanner(new FileReader("./git/index"));
-        String line = scanner.nextLine();
         while (scanner.hasNextLine()) {
-            line = scanner.nextLine();
+            String line = scanner.nextLine();
+            deleteIndex(line);
         }
         scanner.close();
-        System.out.println("Correct entry in index: " + line.equals(sha1(path) + " " + path.getFileName().toString()));
-        deleteIndex(line);
     }
 
     // deletes entry in index
@@ -293,11 +296,6 @@ public class Git {
         reader.close();
         boolean successful = tempFile.renameTo(inputFile);
         System.out.println("Entry deleted in index: " + successful);
-    }
-
-    public static void convertToTree() throws FileNotFoundException {
-        String str;
-        BufferedReader reader = new BufferedReader(new FileReader("./git/index"));
     }
 
 }
