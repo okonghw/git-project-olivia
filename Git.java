@@ -6,6 +6,8 @@ import java.util.Scanner;
 import static java.nio.file.StandardCopyOption.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,7 +26,7 @@ public class Git {
         // Path path = Paths.get("/Users/oliviakong/Desktop/everything basically/forkedcodetest/newFolder");
         // createBlob(path, false);
     }
-    
+  
     //Tests initRepo() for when directory already exists or doesn't exist yet
     public static String initRepoTester() throws IOException{
         //Creates all three directories/files - git, objects and index within git
@@ -50,16 +52,17 @@ public class Git {
         return "Did not initialize repository";
     }
 
-    //Initializes repo
-    public static void initRepo() throws IOException{
-        //Create directory/files in git folder, which creates parent directory git along the way
+    // Initializes repo
+    public static void initRepo() throws IOException {
+        // Create directory/files in git folder, which creates parent directory git
+        // along the way
         Path file1 = Paths.get("./git/objects");
         File file2 = new File("./git/index");
-        //Makes directories - will be false if they already exist
+        // Makes directories - will be false if they already exist
         boolean bool1 = file1.toFile().mkdirs();
         boolean bool2 = file2.createNewFile();
-        //Returns "Git repository already exists" if both directories already exist
-        if (!(bool1)&&!(bool2)){
+        // Returns "Git repository already exists" if both directories already exist
+        if (!(bool1) && !(bool2)) {
             System.out.println("Git Repository already exists");
         }
     }
@@ -95,6 +98,11 @@ public class Git {
 
         Path objectsDir = Paths.get("./git/objects");
         File[] allObjects = objectsDir.toFile().listFiles();
+
+        for (File indexLine : allObjects) {
+            checkIndex(indexLine.toPath());
+        }
+
         if (allObjects != null) {
             for (File object : allObjects) {
                 boolean objectDeletionStatus = object.delete();
@@ -202,16 +210,16 @@ public class Git {
         }
         return(fileToSave);
     }
-    
-    //zip-compression method
-    public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
+
+    // zip-compression method
+    public static String compressData(Path path) throws IOException, DigestException, NoSuchAlgorithmException {
         StringBuilder str = new StringBuilder();
         Scanner scanner = new Scanner(new FileReader(path.toString()));
-        while (scanner.hasNextLine()){
+        while (scanner.hasNextLine()) {
             str.append(scanner.nextLine());
         }
         scanner.close();
-        //creates zip file
+        // creates zip file
         File f = new File(path.getFileName().toString() + ".zip");
         ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
         ZipEntry e = new ZipEntry(path.getFileName().toString());
@@ -223,9 +231,9 @@ public class Git {
         return (f.getPath());
     }
 
-    //writes zip file onto blank file
-    public static Path unzip(String path, String destDir) throws IOException{
-        File dest = new File (destDir);
+    // writes zip file onto blank file
+    public static Path unzip(String path, String destDir) throws IOException {
+        File dest = new File(destDir);
         if (!dest.exists()) {
             dest.createNewFile();
         }
@@ -235,11 +243,11 @@ public class Git {
         return (Paths.get(dest.getPath()));
     }
 
-    //extracts data from zip file
-    public static void extract(String zipPath, File dest) throws IOException{
+    // extracts data from zip file
+    public static void extract(String zipPath, File dest) throws IOException {
         ZipFile zipFile = new ZipFile(zipPath);
         Enumeration<? extends ZipEntry> entries = zipFile.entries();
-        while(entries.hasMoreElements()){
+        while (entries.hasMoreElements()) {
             ZipEntry entry = entries.nextElement();
             InputStream instream = zipFile.getInputStream(entry);
             FileOutputStream outstream = new FileOutputStream(dest);
@@ -256,21 +264,19 @@ public class Git {
         }
         zipFile.close();
     }
-    
-    //checks if entry in index is correct
-    public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException{
+
+    // checks if entry in index is correct
+    public static void checkIndex(Path path) throws IOException, DigestException, NoSuchAlgorithmException {
         Scanner scanner = new Scanner(new FileReader("./git/index"));
-        String line = scanner.nextLine();
-        while (scanner.hasNextLine()){
-            line = scanner.nextLine();
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            deleteIndex(line);
         }
         scanner.close();
-        System.out.println("Correct entry in index: " + line.equals(sha1(path) + " " + path.getFileName().toString()));
-        deleteIndex(line);
     }
-    
-    //deletes entry in index
-    public static void deleteIndex(String line) throws IOException{
+
+    // deletes entry in index
+    public static void deleteIndex(String line) throws IOException {
         File inputFile = new File("./git/index");
         File tempFile = new File("./git/tempfile");
         BufferedReader reader = new BufferedReader(new FileReader(inputFile));
